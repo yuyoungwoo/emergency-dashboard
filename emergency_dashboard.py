@@ -10,6 +10,7 @@ import random
 import platform
 import matplotlib.pyplot as plt
 
+# ── 한글 폰트 설정 ──────────────────────────────────────
 if platform.system() == 'Windows':
     plt.rcParams['font.family'] = 'Malgun Gothic'
 elif platform.system() == 'Darwin':
@@ -24,6 +25,10 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# ── 세션 스테이트 초기화 ────────────────────────────────
+if 'sidebar_open' not in st.session_state:
+    st.session_state.sidebar_open = True
 
 # ── SVG 아이콘 딕셔너리 ─────────────────────────────────
 ICON = {
@@ -41,137 +46,128 @@ ICON = {
     "logo":     '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
     "wifi":     '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>',
     "table":    '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>',
-    "menu":     '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>',
-    "close":    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
 }
 
 def svg(key, color="currentColor"):
     return ICON[key].replace('stroke="currentColor"', f'stroke="{color}"')
 
-st.markdown("""
+# ── 사이드바 표시/숨김 CSS ───────────────────────────────
+sidebar_css = (
+    "[data-testid='stSidebar'] { display: block !important; }"
+    if st.session_state.sidebar_open else
+    "[data-testid='stSidebar'] { display: none !important; }"
+)
+
+st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-*, html, body, [class*="css"] {
+*, html, body, [class*="css"] {{
     font-family: 'Pretendard', 'Inter', sans-serif !important;
     box-sizing: border-box;
-}
-.stApp { background: #f1f5f9; }
+}}
+.stApp {{ background: #f1f5f9; }}
 
-/* 사이드바 */
-[data-testid="stSidebar"] {
+{sidebar_css}
+
+[data-testid="stSidebar"] {{
     background: #1e3a5f !important;
     border-right: none !important;
     min-width: 220px !important;
     max-width: 220px !important;
-}
-[data-testid="stSidebar"] * { color: #94a3b8 !important; }
-[data-testid="stSidebar"] .stRadio label {
+}}
+[data-testid="stSidebar"] * {{ color: #94a3b8 !important; }}
+[data-testid="stSidebar"] .stRadio label {{
     color: #94a3b8 !important;
     font-size: 13px !important;
     font-weight: 500 !important;
     padding: 8px 12px !important;
     border-radius: 8px !important;
     cursor: pointer !important;
-}
+}}
 
-/* 사이드바 토글 버튼 커스텀 */
-[data-testid="stSidebarHeader"] {
-    background: #1e3a5f !important;
-    padding: 8px !important;
-}
-[data-testid="stSidebarCollapseButton"] button,
-[data-testid="stExpandSidebarButton"] button {
-    background: rgba(255,255,255,0.1) !important;
-    border: 1px solid rgba(255,255,255,0.15) !important;
-    border-radius: 8px !important;
+/* 기본 Streamlit 버튼/툴바 숨기기 */
+[data-testid="stSidebarHeader"]       {{ display: none !important; }}
+[data-testid="stExpandSidebarButton"] {{ display: none !important; }}
+[data-testid="collapsedControl"]      {{ display: none !important; }}
+[data-testid="stAppToolbar"]          {{ display: none !important; }}
+[data-testid="stMainMenu"]            {{ display: none !important; }}
+
+/* 커스텀 토글 버튼 스타일 */
+div[data-testid="stButton"] > button {{
+    background: #2563eb !important;
     color: #ffffff !important;
-    width: 34px !important;
-    height: 34px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    transition: background .15s !important;
-}
-[data-testid="stSidebarCollapseButton"] button:hover,
-[data-testid="stExpandSidebarButton"] button:hover {
-    background: rgba(255,255,255,0.2) !important;
-}
-[data-testid="stSidebarCollapseButton"] button svg,
-[data-testid="stExpandSidebarButton"] button svg {
-    fill: #ffffff !important;
-    stroke: #ffffff !important;
-}
+    border: none !important;
+    border-radius: 10px !important;
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 20px !important;
+    padding: 0 !important;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.35) !important;
+    transition: background .15s, transform .15s !important;
+    margin-top: 4px !important;
+}}
+div[data-testid="stButton"] > button:hover {{
+    background: #1d4ed8 !important;
+    transform: scale(1.05) !important;
+}}
 
-/* 상단 툴바 숨기기 */
-[data-testid="stAppToolbar"] { display: none !important; }
-[data-testid="stMainMenu"]   { display: none !important; }
-
-.main .block-container {
+.main .block-container {{
     padding: 1.5rem 2rem !important;
     max-width: 100% !important;
-}
-.card {
+}}
+.card {{
     background: #ffffff;
     border-radius: 14px;
     padding: 20px 22px;
     box-shadow: 0 1px 4px rgba(15,23,42,.06), 0 4px 16px rgba(15,23,42,.04);
     margin-bottom: 16px;
     border: 1px solid #e2e8f0;
-}
-.kpi-card {
+}}
+.kpi-card {{
     background: #ffffff;
     border-radius: 14px;
     padding: 24px 28px;
     box-shadow: 0 1px 4px rgba(15,23,42,.06);
     border: 1px solid #e2e8f0;
-    display: flex;
-    flex-direction: column;
+    display: flex; flex-direction: column;
     min-height: 150px;
-}
-.kpi-icon {
-    width: 42px; height: 42px;
-    border-radius: 10px;
+}}
+.kpi-icon {{
+    width: 42px; height: 42px; border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
     margin-bottom: 16px;
-}
-.kpi-label { font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 6px; }
-.kpi-value { font-size: 30px; font-weight: 800; color: #0f172a; line-height: 1.1; }
-.kpi-delta { font-size: 12px; font-weight: 600; margin-top: 8px; display: flex; align-items: center; gap: 4px; }
-.sec-title { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-.pg-title  { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }
-.pg-sub    { font-size: 13px; color: #64748b; margin-bottom: 20px; }
-.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
-.badge-red   { background:#fee2e2; color:#dc2626; }
-.badge-amber { background:#fef3c7; color:#b45309; }
-.badge-green { background:#d1fae5; color:#059669; }
-.tl-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
-.tl-dot  { width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
-.tl-name { font-size: 13px; font-weight: 700; color: #0f172a; }
-.tl-sub  { font-size: 12px; color: #64748b; margin-top: 2px; }
-.sb-divider  { border: none; border-top: 1px solid rgba(255,255,255,.08); margin: 8px 0; }
-.sb-section  { font-size: 10px; font-weight: 700; letter-spacing:.1em; color: #475569; text-transform: uppercase; padding: 14px 12px 6px; }
-.sb-menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #94a3b8; margin-bottom: 2px; }
-div[data-testid="metric-container"] { display: none; }
-.stButton > button {
-    background: #2563eb !important; color: #fff !important;
-    border: none !important; border-radius: 10px !important;
-    font-weight: 700 !important; font-size: 13px !important;
-    padding: .5rem 1.4rem !important;
-}
-.stMultiSelect [data-baseweb="tag"] { background: #2563eb !important; color: #fff !important; }
+}}
+.kpi-label {{ font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 6px; }}
+.kpi-value {{ font-size: 30px; font-weight: 800; color: #0f172a; line-height: 1.1; }}
+.kpi-delta {{ font-size: 12px; font-weight: 600; margin-top: 8px; display: flex; align-items: center; gap: 4px; }}
+.sec-title {{ font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }}
+.pg-title  {{ font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }}
+.pg-sub    {{ font-size: 13px; color: #64748b; margin-bottom: 0; }}
+.badge {{ display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }}
+.badge-red   {{ background:#fee2e2; color:#dc2626; }}
+.badge-amber {{ background:#fef3c7; color:#b45309; }}
+.badge-green {{ background:#d1fae5; color:#059669; }}
+.tl-item {{ display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }}
+.tl-dot  {{ width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }}
+.tl-name {{ font-size: 13px; font-weight: 700; color: #0f172a; }}
+.tl-sub  {{ font-size: 12px; color: #64748b; margin-top: 2px; }}
+.sb-divider  {{ border: none; border-top: 1px solid rgba(255,255,255,.08); margin: 8px 0; }}
+.sb-section  {{ font-size: 10px; font-weight: 700; letter-spacing:.1em; color: #475569; text-transform: uppercase; padding: 14px 12px 6px; }}
+.sb-menu-item {{ display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #94a3b8; margin-bottom: 2px; }}
+div[data-testid="metric-container"] {{ display: none; }}
+.stMultiSelect [data-baseweb="tag"] {{ background: #2563eb !important; color: #fff !important; }}
 
-/* 모바일 대응 */
-@media (max-width: 768px) {
-    .main .block-container { padding: 1rem !important; }
-    .kpi-card { padding: 16px 18px !important; min-height: 120px !important; }
-    .kpi-value { font-size: 24px !important; }
-}
+@media (max-width: 768px) {{
+    .main .block-container {{ padding: 1rem !important; }}
+    .kpi-card {{ padding: 16px 18px !important; min-height: 120px !important; }}
+    .kpi-value {{ font-size: 24px !important; }}
+}}
 </style>
 """, unsafe_allow_html=True)
 
-# ── 샘플 데이터 생성 ────────────────────────────────────
+# ── 데이터 생성 ─────────────────────────────────────────
 @st.cache_data
 def load_data():
     random.seed(42); np.random.seed(42)
@@ -240,11 +236,34 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+# ── 페이지 타이틀 + 토글 버튼 ───────────────────────────
+page_titles = {
+    "대시보드": ("대시보드", "부산 권역 응급실 실시간 현황"),
+    "지도":     ("지도", "부산 권역 응급실 위치 및 혼잡도"),
+    "AI 문진":  ("AI 증상 문진", "증상을 선택하면 경증/중증 여부를 AI가 판별합니다"),
+    "분석":     ("분석", "응급실 데이터 심층 분석"),
+}
+title, sub = page_titles[menu]
+
+btn_col, title_col = st.columns([0.04, 0.96])
+with btn_col:
+    btn_icon = "✕" if st.session_state.sidebar_open else "☰"
+    if st.button(btn_icon, key="toggle_btn"):
+        st.session_state.sidebar_open = not st.session_state.sidebar_open
+        st.rerun()
+
+with title_col:
+    st.markdown(f"""
+    <div style="padding-top:4px;">
+        <div class="pg-title">{title}</div>
+        <div class="pg-sub">{sub}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<div style='margin-bottom:1.2rem;border-bottom:1px solid #e2e8f0;'></div>", unsafe_allow_html=True)
+
 # ── 대시보드 ─────────────────────────────────────────────
 if menu == "대시보드":
-    st.markdown('<div class="pg-title">대시보드</div>', unsafe_allow_html=True)
-    st.markdown('<div class="pg-sub">부산 권역 응급실 실시간 현황</div>', unsafe_allow_html=True)
-
     avg_wait  = int(df_h["대기(분)"].mean())
     tot_beds  = df_h["가용병상"].sum()
     congested = len(df_h[df_h["혼잡도"] == "혼잡"])
@@ -376,8 +395,6 @@ if menu == "대시보드":
         st.markdown('</div>', unsafe_allow_html=True)
 
 elif menu == "지도":
-    st.markdown('<div class="pg-title">지도</div>', unsafe_allow_html=True)
-    st.markdown('<div class="pg-sub">부산 권역 응급실 위치 및 혼잡도</div>', unsafe_allow_html=True)
     st.markdown('<div class="card">', unsafe_allow_html=True)
     m = folium.Map(location=[35.13, 129.05], zoom_start=12, tiles='CartoDB positron')
     cmap = {'혼잡': 'red', '보통': 'orange', '여유': 'green'}
@@ -395,15 +412,13 @@ elif menu == "지도":
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif menu == "AI 문진":
-    st.markdown('<div class="pg-title">AI 증상 문진</div>', unsafe_allow_html=True)
-    st.markdown('<div class="pg-sub">증상을 선택하면 경증/중증 여부를 AI가 판별합니다</div>', unsafe_allow_html=True)
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.markdown(f'<div class="sec-title">{svg("search","#2563eb")} 증상 선택</div>', unsafe_allow_html=True)
     symptoms = st.multiselect("", [
         "발열 (38도 이상)", "두통", "복통", "호흡곤란", "가슴 통증",
         "구토/설사", "외상/골절", "의식 저하", "단순 감기", "피부 발진"
     ], label_visibility="collapsed")
-    if st.button("중증도 판별하기"):
+    if st.button("중증도 판별하기", key="check_btn"):
         if symptoms:
             severe = any(s in symptoms for s in ["호흡곤란", "가슴 통증", "의식 저하", "외상/골절"])
             if severe:
@@ -422,8 +437,6 @@ elif menu == "AI 문진":
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif menu == "분석":
-    st.markdown('<div class="pg-title">분석</div>', unsafe_allow_html=True)
-    st.markdown('<div class="pg-sub">응급실 데이터 심층 분석</div>', unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
         st.markdown('<div class="card">', unsafe_allow_html=True)
