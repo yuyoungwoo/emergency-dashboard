@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import plotly.express as px
 import folium
 from streamlit_folium import st_folium
 from datetime import datetime
@@ -10,7 +9,6 @@ import random
 import platform
 import matplotlib.pyplot as plt
 
-# ── 한글 폰트 설정 ──────────────────────────────────────
 if platform.system() == 'Windows':
     plt.rcParams['font.family'] = 'Malgun Gothic'
 elif platform.system() == 'Darwin':
@@ -20,154 +18,13 @@ else:
 plt.rcParams['axes.unicode_minus'] = False
 
 st.set_page_config(
-    page_title="응급실 대기 예측 시스템",
+    page_title="응급실 대기 예측",
     page_icon="🏥",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# ── 세션 스테이트 초기화 ────────────────────────────────
-if 'sidebar_open' not in st.session_state:
-    st.session_state.sidebar_open = True
-
-# ── SVG 아이콘 딕셔너리 ─────────────────────────────────
-ICON = {
-    "chart":    '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>',
-    "clock":    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
-    "bed":      '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>',
-    "alert":    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-    "users":    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
-    "logout":   '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
-    "hospital": '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
-    "trend_up": '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
-    "trend_dn": '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>',
-    "search":   '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
-    "settings": '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>',
-    "logo":     '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
-    "wifi":     '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>',
-    "table":    '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>',
-}
-
-def svg(key, color="currentColor"):
-    return ICON[key].replace('stroke="currentColor"', f'stroke="{color}"')
-
-# ── 사이드바 표시/숨김 CSS ───────────────────────────────
-sidebar_css = (
-    "[data-testid='stSidebar'] { display: block !important; }"
-    if st.session_state.sidebar_open else
-    "[data-testid='stSidebar'] { display: none !important; }"
-)
-
-st.markdown(f"""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-*, html, body, [class*="css"] {{
-    font-family: 'Pretendard', 'Inter', sans-serif !important;
-    box-sizing: border-box;
-}}
-.stApp {{ background: #f1f5f9; }}
-
-{sidebar_css}
-
-[data-testid="stSidebar"] {{
-    background: #1e3a5f !important;
-    border-right: none !important;
-    min-width: 220px !important;
-    max-width: 220px !important;
-}}
-[data-testid="stSidebar"] * {{ color: #94a3b8 !important; }}
-[data-testid="stSidebar"] .stRadio label {{
-    color: #94a3b8 !important;
-    font-size: 13px !important;
-    font-weight: 500 !important;
-    padding: 8px 12px !important;
-    border-radius: 8px !important;
-    cursor: pointer !important;
-}}
-
-/* 기본 Streamlit 버튼/툴바 숨기기 */
-[data-testid="stSidebarHeader"]       {{ display: none !important; }}
-[data-testid="stExpandSidebarButton"] {{ display: none !important; }}
-[data-testid="collapsedControl"]      {{ display: none !important; }}
-[data-testid="stAppToolbar"]          {{ display: none !important; }}
-[data-testid="stMainMenu"]            {{ display: none !important; }}
-
-/* 커스텀 토글 버튼 스타일 */
-div[data-testid="stButton"] > button {{
-    background: #2563eb !important;
-    color: #ffffff !important;
-    border: none !important;
-    border-radius: 10px !important;
-    width: 40px !important;
-    height: 40px !important;
-    font-size: 20px !important;
-    padding: 0 !important;
-    box-shadow: 0 2px 8px rgba(37,99,235,0.35) !important;
-    transition: background .15s, transform .15s !important;
-    margin-top: 4px !important;
-}}
-div[data-testid="stButton"] > button:hover {{
-    background: #1d4ed8 !important;
-    transform: scale(1.05) !important;
-}}
-
-.main .block-container {{
-    padding: 1.5rem 2rem !important;
-    max-width: 100% !important;
-}}
-.card {{
-    background: #ffffff;
-    border-radius: 14px;
-    padding: 20px 22px;
-    box-shadow: 0 1px 4px rgba(15,23,42,.06), 0 4px 16px rgba(15,23,42,.04);
-    margin-bottom: 16px;
-    border: 1px solid #e2e8f0;
-}}
-.kpi-card {{
-    background: #ffffff;
-    border-radius: 14px;
-    padding: 24px 28px;
-    box-shadow: 0 1px 4px rgba(15,23,42,.06);
-    border: 1px solid #e2e8f0;
-    display: flex; flex-direction: column;
-    min-height: 150px;
-}}
-.kpi-icon {{
-    width: 42px; height: 42px; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 16px;
-}}
-.kpi-label {{ font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 6px; }}
-.kpi-value {{ font-size: 30px; font-weight: 800; color: #0f172a; line-height: 1.1; }}
-.kpi-delta {{ font-size: 12px; font-weight: 600; margin-top: 8px; display: flex; align-items: center; gap: 4px; }}
-.sec-title {{ font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }}
-.pg-title  {{ font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }}
-.pg-sub    {{ font-size: 13px; color: #64748b; margin-bottom: 0; }}
-.badge {{ display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }}
-.badge-red   {{ background:#fee2e2; color:#dc2626; }}
-.badge-amber {{ background:#fef3c7; color:#b45309; }}
-.badge-green {{ background:#d1fae5; color:#059669; }}
-.tl-item {{ display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }}
-.tl-dot  {{ width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }}
-.tl-name {{ font-size: 13px; font-weight: 700; color: #0f172a; }}
-.tl-sub  {{ font-size: 12px; color: #64748b; margin-top: 2px; }}
-.sb-divider  {{ border: none; border-top: 1px solid rgba(255,255,255,.08); margin: 8px 0; }}
-.sb-section  {{ font-size: 10px; font-weight: 700; letter-spacing:.1em; color: #475569; text-transform: uppercase; padding: 14px 12px 6px; }}
-.sb-menu-item {{ display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #94a3b8; margin-bottom: 2px; }}
-div[data-testid="metric-container"] {{ display: none; }}
-.stMultiSelect [data-baseweb="tag"] {{ background: #2563eb !important; color: #fff !important; }}
-
-@media (max-width: 768px) {{
-    .main .block-container {{ padding: 1rem !important; }}
-    .kpi-card {{ padding: 16px 18px !important; min-height: 120px !important; }}
-    .kpi-value {{ font-size: 24px !important; }}
-}}
-</style>
-""", unsafe_allow_html=True)
-
-# ── 데이터 생성 ─────────────────────────────────────────
+# ── 데이터 ──────────────────────────────────────────────
 @st.cache_data
 def load_data():
     random.seed(42); np.random.seed(42)
@@ -199,68 +56,161 @@ def load_data():
     df_k = pd.DataFrame({
         "등급": ["1등급 소생", "2등급 긴급", "3등급 응급", "4등급 준응급", "5등급 비응급"],
         "환자": [12, 45, 180, 320, 290],
-        "색":   ["#ef4444", "#f59e0b", "#2563eb", "#10b981", "#94a3b8"]
+        "색":   ["#ff6b6b", "#ffa94d", "#748ffc", "#69db7c", "#adb5bd"]
     })
     return df_h, df_t, df_k
 
 df_h, df_t, df_k = load_data()
+tabs = ["대시보드", "지도", "AI 문진", "분석"]
+menu_icons = ["▦", "◉", "⊕", "▲"]
+cur = st.session_state.get("menu_sel", "대시보드")
 
-# ── 사이드바 ────────────────────────────────────────────
-with st.sidebar:
-    st.markdown(f"""
-    <div style="display:flex;align-items:center;gap:10px;padding:.8rem 0 1rem;">
-        <div style="width:36px;height:36px;border-radius:10px;background:#2563eb;
-                    display:flex;align-items:center;justify-content:center;">
-            {svg('logo')}
-        </div>
-        <div>
-            <div style="color:#f8fafc;font-weight:800;font-size:14px;line-height:1.2;">응급실 예측</div>
-            <div style="color:#64748b;font-size:11px;">AI 모니터링</div>
-        </div>
-    </div>
-    <hr class="sb-divider">
-    <div class="sb-section">메뉴</div>
-    """, unsafe_allow_html=True)
-
-    menu = st.radio("", ["대시보드", "지도", "AI 문진", "분석"], label_visibility="collapsed")
-
-    st.markdown(f"""
-    <hr class="sb-divider">
-    <div class="sb-section">시스템</div>
-    <div class="sb-menu-item">{svg('settings','#94a3b8')} &nbsp;설정</div>
-    <div class="sb-menu-item" style="color:#ef4444 !important;">{svg('logout','#ef4444')} &nbsp;로그아웃</div>
-    <hr class="sb-divider">
-    <div style="padding:8px 12px;">
-        <div style="font-size:11px;color:#475569;">{svg('clock','#475569')} &nbsp;{datetime.now().strftime('%H:%M')} 기준 (샘플)</div>
-        <div style="font-size:11px;color:#475569;margin-top:4px;">{svg('wifi','#475569')} &nbsp;국립중앙의료원 API</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# ── 페이지 타이틀 + 토글 버튼 ───────────────────────────
-page_titles = {
-    "대시보드": ("대시보드", "부산 권역 응급실 실시간 현황"),
-    "지도":     ("지도", "부산 권역 응급실 위치 및 혼잡도"),
-    "AI 문진":  ("AI 증상 문진", "증상을 선택하면 경증/중증 여부를 AI가 판별합니다"),
-    "분석":     ("분석", "응급실 데이터 심층 분석"),
+# ── CSS ─────────────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+*, html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif !important;
+    box-sizing: border-box;
 }
-title, sub = page_titles[menu]
+.stApp { background: #f0f2ff; }
 
-btn_col, title_col = st.columns([0.04, 0.96])
-with btn_col:
-    btn_icon = "✕" if st.session_state.sidebar_open else "☰"
-    if st.button(btn_icon, key="toggle_btn"):
-        st.session_state.sidebar_open = not st.session_state.sidebar_open
-        st.rerun()
+[data-testid="stSidebarHeader"]       { display: none !important; }
+[data-testid="stExpandSidebarButton"] { display: none !important; }
+[data-testid="collapsedControl"]      { display: none !important; }
+[data-testid="stAppToolbar"]          { display: none !important; }
+[data-testid="stMainMenu"]            { display: none !important; }
+[data-testid="stSidebar"]             { display: none !important; }
 
-with title_col:
-    st.markdown(f"""
-    <div style="padding-top:4px;">
-        <div class="pg-title">{title}</div>
-        <div class="pg-sub">{sub}</div>
-    </div>
-    """, unsafe_allow_html=True)
+.main .block-container {
+    padding: 0 0 0 80px !important;
+    max-width: 100% !important;
+}
 
-st.markdown("<div style='margin-bottom:1.2rem;border-bottom:1px solid #e2e8f0;'></div>", unsafe_allow_html=True)
+/* 고정 미니 사이드바 */
+.fixed-sidebar {
+    position: fixed; left:0; top:0; bottom:0;
+    width: 64px;
+    background: #2d2b55;
+    z-index: 999;
+    display: flex; flex-direction: column;
+    align-items: center;
+}
+.sb-logo-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: #7c6fcd; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin: 18px 0 16px;
+}
+.sb-nav { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; padding: 8px 0; }
+.sb-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: rgba(255,255,255,0.45);
+    transition: background 0.15s, color 0.15s;
+}
+.sb-icon.active { background: #7c6fcd; color: #fff; }
+.sb-bottom { padding-bottom: 20px; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.sb-icon-sm { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; color: rgba(255,255,255,0.35); }
+
+/* 메인 */
+.main-wrap { padding: 20px 28px; }
+.pg-title { font-size: 24px; font-weight: 700; color: #1a1a2e; letter-spacing: -0.03em; }
+.pg-sub   { font-size: 13px; color: #868e96; margin-top: 2px; margin-bottom: 20px; }
+
+/* KPI */
+.kpi-card { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.kpi-card.accent { background: linear-gradient(135deg, #7c6fcd 0%, #5f4fc4 100%); }
+.kpi-card.accent .kpi-label { color: rgba(255,255,255,0.7); }
+.kpi-card.accent .kpi-value { color: #fff; }
+.kpi-card.accent .kpi-delta { color: rgba(255,255,255,0.85); }
+.kpi-label { font-size: 12px; font-weight: 500; color: #868e96; margin-bottom: 6px; }
+.kpi-value { font-size: 26px; font-weight: 700; color: #1a1a2e; letter-spacing: -0.03em; line-height: 1; }
+.kpi-delta { font-size: 12px; font-weight: 500; margin-top: 8px; }
+.delta-up { color: #40c057; }
+.delta-dn { color: #fa5252; }
+
+/* 섹션 카드 */
+.sc { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; }
+.sc-title { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+
+/* 뱃지 */
+.badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+.badge-red    { background:#fff5f5; color:#fa5252; }
+.badge-amber  { background:#fff9db; color:#f59f00; }
+.badge-green  { background:#ebfbee; color:#40c057; }
+.badge-purple { background:#f3f0ff; color:#7c6fcd; }
+
+/* 타임라인 */
+.tl-item { display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-bottom:1px solid #f8f9fa; }
+.tl-dot  { width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+.tl-name { font-size:13px; font-weight:500; color:#1a1a2e; }
+.tl-sub  { font-size:12px; color:#868e96; margin-top:2px; }
+
+/* 라디오 탭 */
+div[data-testid="stRadio"] > div {
+    display: flex; gap: 4px;
+    background: #f1f3f5; padding: 4px; border-radius: 10px;
+    width: fit-content; margin-bottom: 16px;
+}
+div[data-testid="stRadio"] label {
+    padding: 6px 16px !important; border-radius: 8px !important;
+    font-size: 13px !important; font-weight: 500 !important;
+    color: #868e96 !important; cursor: pointer !important;
+}
+div[data-testid="stRadio"] label:has(input:checked) {
+    background: #fff !important; color: #7c6fcd !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
+}
+div[data-testid="stRadio"] input { display: none !important; }
+
+div[data-testid="metric-container"] { display:none; }
+.stMultiSelect [data-baseweb="tag"] { background:#7c6fcd !important; color:#fff !important; border-radius:6px !important; }
+
+div[data-testid="stButton"] > button {
+    background: #7c6fcd !important; color: #fff !important;
+    border: none !important; border-radius: 10px !important;
+    font-size: 13px !important; font-weight: 500 !important;
+    padding: 8px 20px !important;
+    width: auto !important; height: auto !important;
+    box-shadow: none !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ── 미니 사이드바 HTML ───────────────────────────────────
+sb_icons_html = ""
+for icon, label in zip(menu_icons, tabs):
+    act = "active" if cur == label else ""
+    sb_icons_html += f'<div class="sb-icon {act}" title="{label}">{icon}</div>'
+
+st.markdown(f"""
+<div class="fixed-sidebar">
+  <div class="sb-logo-icon">✚</div>
+  <div class="sb-nav">{sb_icons_html}</div>
+  <div class="sb-bottom">
+    <div class="sb-icon-sm" title="설정">⚙</div>
+    <div class="sb-icon-sm" title="로그아웃" style="color:#ff8787;">→</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ── 메인 콘텐츠 ─────────────────────────────────────────
+st.markdown('<div class="main-wrap">', unsafe_allow_html=True)
+
+menu = st.radio("", tabs,
+                horizontal=True,
+                index=tabs.index(cur),
+                label_visibility="collapsed",
+                key="menu_radio")
+if menu != cur:
+    st.session_state.menu_sel = menu
+    st.rerun()
+
+st.markdown(f"""
+<div class="pg-title">{menu}</div>
+<div class="pg-sub">부산 권역 응급실 실시간 현황 · {datetime.now().strftime('%H:%M')} 기준</div>
+""", unsafe_allow_html=True)
 
 # ── 대시보드 ─────────────────────────────────────────────
 if menu == "대시보드":
@@ -269,26 +219,19 @@ if menu == "대시보드":
     congested = len(df_h[df_h["혼잡도"] == "혼잡"])
     mild_pct  = 61.0
 
-    kpis = [
-        ("clock",  "#eff6ff", "#2563eb", "평균 대기시간",  f"{avg_wait}분",  "trend_dn", "#ef4444", "+12분"),
-        ("bed",    "#f0fdf4", "#10b981", "총 가용 병상",   f"{tot_beds}개",  "trend_up", "#10b981", "+1.2%"),
-        ("alert",  "#fff7ed", "#f59e0b", "혼잡 병원 수",   f"{congested}개", "trend_dn", "#ef4444", "즉시 분산 필요"),
-        ("users",  "#eff6ff", "#2563eb", "경증 환자 비율", f"{mild_pct}%",   "trend_up", "#10b981", "+0.5%"),
-    ]
-
-    cols = st.columns(4)
-    for col, (icon_key, bg, ic_color, label, val, trend_key, t_color, delta) in zip(cols, kpis):
+    c1, c2, c3, c4 = st.columns(4)
+    for col, accent, label, val, dcls, delta in [
+        (c1, True,  "평균 대기시간",  f"{avg_wait}분",  "delta-dn", "↑ +12분"),
+        (c2, False, "총 가용 병상",   f"{tot_beds}개",  "delta-up", "↑ +1.2%"),
+        (c3, False, "혼잡 병원 수",   f"{congested}개", "delta-dn", "↓ 즉시 분산"),
+        (c4, False, "경증 환자 비율", f"{mild_pct}%",   "delta-up", "↑ +0.5%"),
+    ]:
         with col:
             st.markdown(f"""
-            <div class="kpi-card">
-                <div class="kpi-icon" style="background:{bg};">{svg(icon_key, ic_color)}</div>
-                <div>
-                    <div class="kpi-label">{label}</div>
-                    <div class="kpi-value">{val}</div>
-                    <div class="kpi-delta" style="color:{t_color};">
-                        {svg(trend_key, t_color)} {delta}
-                    </div>
-                </div>
+            <div class="kpi-card {"accent" if accent else ""}">
+                <div class="kpi-label">{label}</div>
+                <div class="kpi-value">{val}</div>
+                <div class="kpi-delta {dcls}">{delta}</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -296,58 +239,57 @@ if menu == "대시보드":
     col_g, col_tl = st.columns([1.8, 1])
 
     with col_g:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="sec-title">{svg("chart","#2563eb")} 시간대별 대기시간 예측</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sc">', unsafe_allow_html=True)
+        st.markdown('<div class="sc-title"><span>📈 시간대별 대기시간 예측</span><span class="badge badge-purple">실시간</span></div>', unsafe_allow_html=True)
         selected = st.multiselect("", df_t.columns.tolist(),
                                   default=df_t.columns.tolist()[:2],
                                   label_visibility="collapsed")
         if selected:
             fig = go.Figure()
-            pal      = ["#2563eb", "#10b981", "#f59e0b"]
-            fill_pal = ["rgba(37,99,235,0.07)", "rgba(16,185,129,0.07)", "rgba(245,158,11,0.07)"]
-            for i, col in enumerate(selected):
+            pal      = ["#7c6fcd", "#69db7c", "#ffa94d"]
+            fill_pal = ["rgba(124,111,205,0.1)", "rgba(105,219,124,0.1)", "rgba(255,169,77,0.1)"]
+            for i, c in enumerate(selected):
                 fig.add_trace(go.Scatter(
-                    x=df_t.index, y=df_t[col], name=col,
-                    mode='lines+markers',
-                    line=dict(color=pal[i % len(pal)], width=2.5),
-                    marker=dict(size=4, color=pal[i % len(pal)]),
-                    fill='tozeroy', fillcolor=fill_pal[i % len(fill_pal)]
+                    x=list(range(24)), y=df_t[c], name=c,
+                    mode='lines',
+                    line=dict(color=pal[i%len(pal)], width=2.5, shape='spline', smoothing=1.2),
+                    fill='tozeroy', fillcolor=fill_pal[i%len(fill_pal)],
+                    hovertemplate="%{y}분<extra></extra>"
                 ))
-            fig.add_hline(y=120, line_dash="dot", line_color="#ef4444", line_width=1.5,
-                          annotation_text="혼잡 기준", annotation_font_color="#ef4444",
+            fig.add_hline(y=120, line_dash="dot", line_color="#fa5252", line_width=1,
+                          annotation_text="혼잡 기준", annotation_font_color="#fa5252",
                           annotation_position="right")
-            fig.add_vline(x=datetime.now().hour, line_dash="dash", line_color="#94a3b8", line_width=1)
             fig.update_layout(
-                height=270, plot_bgcolor="#f8fafc", paper_bgcolor="#ffffff",
+                height=240, plot_bgcolor="#fff", paper_bgcolor="#fff",
                 margin=dict(l=0, r=10, t=10, b=0),
-                font=dict(family="Pretendard, Inter", color="#0f172a", size=11),
-                legend=dict(bgcolor="#ffffff", bordercolor="#e2e8f0", borderwidth=1,
-                            orientation="h", yanchor="bottom", y=1.02, x=0),
-                xaxis=dict(gridcolor="#e2e8f0", tickmode="array",
+                font=dict(color="#1a1a2e", size=11),
+                legend=dict(bgcolor="rgba(255,255,255,0.9)", bordercolor="#f1f3f5",
+                            borderwidth=1, orientation="h", yanchor="bottom", y=1.02, x=0),
+                xaxis=dict(gridcolor="#f1f3f5", tickmode="array",
                            tickvals=list(range(0, 24, 3)),
                            ticktext=[f"{h}시" for h in range(0, 24, 3)],
-                           showline=False, zeroline=False),
-                yaxis=dict(gridcolor="#e2e8f0", title="대기(분)", showline=False, zeroline=False),
+                           tickangle=0, showline=False, zeroline=False),
+                yaxis=dict(gridcolor="#f1f3f5", title="대기(분)", showline=False, zeroline=False),
                 hovermode="x unified"
             )
             st.plotly_chart(fig, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_tl:
-        st.markdown('<div class="card" style="height:100%">', unsafe_allow_html=True)
-        st.markdown(f'<div class="sec-title">{svg("hospital","#2563eb")} 실시간 현황</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sc">', unsafe_allow_html=True)
+        st.markdown('<div class="sc-title">🏥 실시간 현황</div>', unsafe_allow_html=True)
         tl_data = [
-            ("혼잡", df_h.iloc[0]["병원명"], f"대기 {df_h.iloc[0]['대기(분)']}분", "#ef4444"),
-            ("보통", df_h.iloc[2]["병원명"], f"대기 {df_h.iloc[2]['대기(분)']}분", "#f59e0b"),
-            ("여유", df_h.iloc[3]["병원명"], f"대기 {df_h.iloc[3]['대기(분)']}분", "#10b981"),
-            ("보통", df_h.iloc[4]["병원명"], f"가용 {df_h.iloc[4]['가용병상']}병상", "#f59e0b"),
-            ("혼잡", df_h.iloc[1]["병원명"], f"대기 {df_h.iloc[1]['대기(분)']}분", "#ef4444"),
+            ("혼잡", df_h.iloc[0]["병원명"], f"대기 {df_h.iloc[0]['대기(분)']}분", "#fa5252"),
+            ("보통", df_h.iloc[2]["병원명"], f"대기 {df_h.iloc[2]['대기(분)']}분", "#f59f00"),
+            ("여유", df_h.iloc[3]["병원명"], f"대기 {df_h.iloc[3]['대기(분)']}분", "#40c057"),
+            ("보통", df_h.iloc[4]["병원명"], f"가용 {df_h.iloc[4]['가용병상']}병상", "#f59f00"),
+            ("혼잡", df_h.iloc[1]["병원명"], f"대기 {df_h.iloc[1]['대기(분)']}분", "#fa5252"),
         ]
         for cong, name, detail, color in tl_data:
-            bc = "badge-red" if cong == "혼잡" else ("badge-amber" if cong == "보통" else "badge-green")
+            bc = "badge-red" if cong=="혼잡" else ("badge-amber" if cong=="보통" else "badge-green")
             st.markdown(f"""
             <div class="tl-item">
-                <div class="tl-dot" style="background:{color};margin-top:6px;"></div>
+                <div class="tl-dot" style="background:{color};margin-top:5px;"></div>
                 <div style="flex:1;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <div class="tl-name">{name}</div>
@@ -363,73 +305,86 @@ if menu == "대시보드":
     col_tb, col_ktas = st.columns([1.4, 1])
 
     with col_tb:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="sec-title">{svg("table","#2563eb")} 응급실 현황</div>', unsafe_allow_html=True)
-        def cc(v): return "color:#dc2626;font-weight:700" if v=="혼잡" else ("color:#b45309;font-weight:700" if v=="보통" else "color:#059669;font-weight:700")
-        def cw(v): return "color:#dc2626" if v>120 else ("color:#b45309" if v>60 else "color:#059669")
+        st.markdown('<div class="sc">', unsafe_allow_html=True)
+        st.markdown('<div class="sc-title">📋 응급실 현황</div>', unsafe_allow_html=True)
+        def cc(v): return "color:#fa5252;font-weight:600" if v=="혼잡" else ("color:#f59f00;font-weight:600" if v=="보통" else "color:#40c057;font-weight:600")
+        def cw(v): return "color:#fa5252" if v>120 else ("color:#f59f00" if v>60 else "color:#40c057")
         styled = df_h[["병원명","등급","대기(분)","가용병상","혼잡도"]].style\
             .map(cc, subset=["혼잡도"]).map(cw, subset=["대기(분)"])
-        st.dataframe(styled, use_container_width=True, hide_index=True, height=210)
+        st.dataframe(styled, use_container_width=True, hide_index=True, height=200)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_ktas:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="sec-title">{svg("users","#2563eb")} KTAS 환자 분포</div>', unsafe_allow_html=True)
-        fig2 = go.Figure(go.Bar(
-            x=df_k["환자"], y=df_k["등급"], orientation='h',
-            marker_color=df_k["색"].tolist(),
-            text=df_k["환자"].astype(str) + "명",
-            textposition='outside',
+        st.markdown('<div class="sc">', unsafe_allow_html=True)
+        st.markdown('<div class="sc-title">👥 KTAS 환자 분포</div>', unsafe_allow_html=True)
+        total = df_k["환자"].sum()
+        fig2 = go.Figure(go.Pie(
+            labels=df_k["등급"], values=df_k["환자"], hole=0.62,
+            marker=dict(colors=df_k["색"].tolist(), line=dict(color="#fff", width=3)),
+            textinfo="percent", textfont=dict(size=11),
+            hovertemplate="%{label}<br>%{value}명<extra></extra>",
         ))
+        fig2.add_annotation(text=f"<b>{total}</b><br>총 환자",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=14, color="#1a1a2e"), align="center")
         fig2.update_layout(
-            height=210, plot_bgcolor="#f8fafc", paper_bgcolor="#ffffff",
-            margin=dict(l=0, r=50, t=0, b=0),
-            font=dict(family="Pretendard, Inter", color="#0f172a", size=11),
-            xaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
-            yaxis=dict(showgrid=False), showlegend=False
+            height=200, paper_bgcolor="#fff",
+            margin=dict(l=0, r=0, t=0, b=0),
+            legend=dict(orientation="v", font=dict(size=10, color="#868e96"),
+                        bgcolor="rgba(0,0,0,0)", x=1, y=0.5),
         )
         st.plotly_chart(fig2, use_container_width=True)
-        total = df_k["환자"].sum()
-        mild  = df_k[df_k["등급"].str.contains("4등급|5등급")]["환자"].sum()
-        st.markdown(f'<div style="font-size:12px;color:#64748b;margin-top:-8px;">💡 경증 비율 <b style="color:#2563eb">{mild/total*100:.1f}%</b> — 분산 시 혼잡도 완화 가능</div>', unsafe_allow_html=True)
+        mild = df_k[df_k["등급"].str.contains("4등급|5등급")]["환자"].sum()
+        st.markdown(f'<div style="font-size:12px;color:#868e96;">경증 비율 <b style="color:#7c6fcd">{mild/total*100:.1f}%</b></div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
 elif menu == "지도":
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="sc">', unsafe_allow_html=True)
+    st.markdown('<div class="sc-title"><span>🗺 병원 위치</span><span class="badge badge-purple">부산 권역</span></div>', unsafe_allow_html=True)
     m = folium.Map(location=[35.13, 129.05], zoom_start=12, tiles='CartoDB positron')
-    cmap = {'혼잡': 'red', '보통': 'orange', '여유': 'green'}
+    cmap = {'혼잡': 'red', '보통': 'beige', '여유': 'green'}
     for _, row in df_h.iterrows():
-        popup_html = f"""<div style='font-family:sans-serif;min-width:150px;'>
-            <b>{row['병원명']}</b><br>대기: <b>{row['대기(분)']}분</b><br>
-            가용병상: <b>{row['가용병상']}/{row['전체병상']}</b><br>혼잡도: <b>{row['혼잡도']}</b></div>"""
-        folium.Marker(
-            [row['위도'], row['경도']],
-            popup=folium.Popup(popup_html, max_width=180),
+        popup_html = f"""<div style='font-family:Inter,sans-serif;min-width:160px;'>
+            <b>{row['병원명']}</b><br>
+            <span style='color:#868e96;font-size:11px;'>{row['등급']}</span><hr style='margin:6px 0;'>
+            대기 : <b>{row['대기(분)']}분</b><br>
+            병상 : <b>{row['가용병상']}/{row['전체병상']}</b>
+        </div>"""
+        folium.Marker([row['위도'], row['경도']],
+            popup=folium.Popup(popup_html, max_width=200),
             tooltip=f"{row['병원명']} ({row['혼잡도']})",
             icon=folium.Icon(color=cmap[row['혼잡도']], icon='plus-sign', prefix='glyphicon')
         ).add_to(m)
+    folium.Marker([35.1796, 129.0756],
+        popup="현재 위치 (기본값: 부산시청)", tooltip="📍 현재 위치",
+        icon=folium.Icon(color='purple', icon='user', prefix='glyphicon')
+    ).add_to(m)
     st_folium(m, width=None, height=520)
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif menu == "AI 문진":
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown(f'<div class="sec-title">{svg("search","#2563eb")} 증상 선택</div>', unsafe_allow_html=True)
-    symptoms = st.multiselect("", [
-        "발열 (38도 이상)", "두통", "복통", "호흡곤란", "가슴 통증",
-        "구토/설사", "외상/골절", "의식 저하", "단순 감기", "피부 발진"
-    ], label_visibility="collapsed")
-    if st.button("중증도 판별하기", key="check_btn"):
-        if symptoms:
-            severe = any(s in symptoms for s in ["호흡곤란", "가슴 통증", "의식 저하", "외상/골절"])
+    st.markdown('<div class="sc">', unsafe_allow_html=True)
+    st.markdown('<div class="sc-title">🤖 증상 선택</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:13px;color:#868e96;margin-bottom:16px;">해당하는 증상을 선택하면 경증/중증 여부를 판별해 드립니다</div>', unsafe_allow_html=True)
+    symptom_list = ["발열 (38도 이상)","두통","복통","호흡곤란","가슴 통증","구토/설사","외상/골절","의식 저하","단순 감기","피부 발진"]
+    col_a, col_b = st.columns(2)
+    selected_symptoms = []
+    for i, sym in enumerate(symptom_list):
+        with col_a if i % 2 == 0 else col_b:
+            if st.checkbox(sym, key=f"sym_{i}"):
+                selected_symptoms.append(sym)
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("중증도 판별", key="check_btn"):
+        if selected_symptoms:
+            severe = any(s in selected_symptoms for s in ["호흡곤란","가슴 통증","의식 저하","외상/골절"])
             if severe:
-                st.error("🚨 **중증 의심** — 즉시 대형병원 응급실로 이동하세요")
+                st.error("🚨 중증 의심 — 즉시 대형병원 응급실로 이동하세요")
             else:
-                st.success("✅ **경증 판정** — 아래 대체 병원을 이용하세요")
-                st.markdown("#### 📍 추천 야간 진료 병원")
+                st.success("✅ 경증 판정 — 아래 대체 병원을 이용하세요")
                 for h in [
-                    {"name": "부산 달빛어린이병원", "dist": "1.2km", "wait": "15분", "open": "24시간"},
-                    {"name": "해운대 야간 의원",    "dist": "2.1km", "wait": "20분", "open": "23:00까지"},
-                    {"name": "서면 24시 내과의원",  "dist": "3.4km", "wait": "5분",  "open": "24시간"},
+                    {"name":"부산 달빛어린이병원","dist":"1.2km","wait":"15분","open":"24시간"},
+                    {"name":"해운대 야간 의원","dist":"2.1km","wait":"20분","open":"23:00까지"},
+                    {"name":"서면 24시 내과의원","dist":"3.4km","wait":"5분","open":"24시간"},
                 ]:
                     st.markdown(f"**{h['name']}** · {h['dist']} · 대기 {h['wait']} · {h['open']}")
         else:
@@ -439,29 +394,38 @@ elif menu == "AI 문진":
 elif menu == "분석":
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="sec-title">{svg("chart","#2563eb")} 병원별 대기시간</div>', unsafe_allow_html=True)
-        fig3 = px.bar(df_h, x="병원명", y="대기(분)", color="혼잡도",
-                      color_discrete_map={"혼잡": "#ef4444", "보통": "#f59e0b", "여유": "#10b981"})
-        fig3.update_layout(height=250, plot_bgcolor="#f8fafc", paper_bgcolor="#ffffff",
-                           margin=dict(l=0,r=0,t=0,b=0),
-                           font=dict(family="Pretendard,Inter", size=11),
-                           xaxis=dict(gridcolor="#e2e8f0", tickangle=-15),
-                           yaxis=dict(gridcolor="#e2e8f0"))
+        st.markdown('<div class="sc">', unsafe_allow_html=True)
+        st.markdown('<div class="sc-title">📊 병원별 대기시간</div>', unsafe_allow_html=True)
+        fig3 = go.Figure(go.Bar(
+            x=df_h["대기(분)"], y=df_h["병원명"], orientation='h',
+            marker=dict(color=df_h["대기(분)"],
+                colorscale=[[0,"#69db7c"],[0.5,"#ffa94d"],[1,"#ff6b6b"]],
+                showscale=False, line=dict(width=0)),
+            text=df_h["대기(분)"].astype(str)+"분", textposition='outside',
+        ))
+        fig3.update_layout(height=250, plot_bgcolor="#fff", paper_bgcolor="#fff",
+            margin=dict(l=0,r=60,t=0,b=0), font=dict(color="#1a1a2e",size=11),
+            xaxis=dict(showgrid=False,zeroline=False,showticklabels=False),
+            yaxis=dict(showgrid=False,tickangle=0))
         st.plotly_chart(fig3, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
     with col2:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="sec-title">{svg("bed","#2563eb")} 병상 가용률</div>', unsafe_allow_html=True)
-        df_h["가용률(%)"] = (df_h["가용병상"] / df_h["전체병상"] * 100).round(1)
-        fig4 = px.bar(df_h, x="병원명", y="가용률(%)", color_discrete_sequence=["#2563eb"])
-        fig4.update_layout(height=250, plot_bgcolor="#f8fafc", paper_bgcolor="#ffffff",
-                           margin=dict(l=0,r=0,t=0,b=0),
-                           font=dict(family="Pretendard,Inter", size=11),
-                           xaxis=dict(gridcolor="#e2e8f0", tickangle=-15),
-                           yaxis=dict(gridcolor="#e2e8f0"))
+        st.markdown('<div class="sc">', unsafe_allow_html=True)
+        st.markdown('<div class="sc-title">🛏 병상 가용률</div>', unsafe_allow_html=True)
+        df_h["가용률(%)"] = (df_h["가용병상"]/df_h["전체병상"]*100).round(1)
+        fig4 = go.Figure()
+        fig4.add_trace(go.Bar(x=df_h["병원명"], y=df_h["전체병상"],
+            name="전체병상", marker_color="rgba(124,111,205,0.15)", marker_line_width=0))
+        fig4.add_trace(go.Bar(x=df_h["병원명"], y=df_h["가용병상"],
+            name="가용병상", marker_color="#7c6fcd", marker_line_width=0))
+        fig4.update_layout(height=250, plot_bgcolor="#fff", paper_bgcolor="#fff",
+            barmode='overlay', margin=dict(l=0,r=0,t=0,b=0),
+            font=dict(color="#1a1a2e",size=11),
+            xaxis=dict(gridcolor="#f1f3f5",tickangle=0),
+            yaxis=dict(gridcolor="#f1f3f5"),
+            legend=dict(bgcolor="rgba(0,0,0,0)",font=dict(size=11)))
         st.plotly_chart(fig4, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown("---")
-st.markdown("<div style='text-align:center;color:#94a3b8;font-size:11px;'>데이터 출처 : 국립중앙의료원 응급의료 공공데이터 | 프로토타입 v0.3</div>", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("<div style='text-align:center;color:#adb5bd;font-size:11px;padding:12px;'>국립중앙의료원 응급의료 공공데이터 | 프로토타입 v0.6</div>", unsafe_allow_html=True)
