@@ -175,6 +175,20 @@ div[data-testid="stButton"] > button {
     width: auto !important; height: auto !important;
     box-shadow: none !important;
 }
+
+@media (max-width: 768px) {
+    .fixed-sidebar { width: 48px !important; }
+    .main .block-container { padding: 0 0 0 56px !important; }
+    .main-wrap { padding: 12px 14px !important; }
+    .sb-logo-icon { width: 28px !important; height: 28px !important; font-size: 14px !important; margin: 12px 0 10px !important; }
+    .sb-icon { width: 32px !important; height: 32px !important; font-size: 15px !important; }
+    .pg-title { font-size: 18px !important; }
+    .pg-sub { font-size: 12px !important; margin-bottom: 12px !important; }
+    .kpi-value { font-size: 20px !important; }
+    .kpi-card { padding: 14px !important; }
+    div[data-testid="stRadio"] > div { flex-wrap: wrap !important; width: 100% !important; }
+    div[data-testid="stRadio"] label { padding: 5px 10px !important; font-size: 12px !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
