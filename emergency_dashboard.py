@@ -131,7 +131,7 @@ st.markdown("""
 .delta-dn { color: #fa5252; }
 
 /* 섹션 카드 */
-.sc { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; }
+.sc { background: transparent; border-radius: 0; padding: 0; box-shadow: none; margin-bottom: 16px; }
 .sc-title { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
 
 /* 뱃지 */
